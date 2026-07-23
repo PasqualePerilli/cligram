@@ -1,26 +1,18 @@
 # cligram 
 
-Cligram is a CLI telegram client written in python. It sends messages and files through your personal telegram account using a daemon that maintains a connection in the background, much like the stock telegram desktop app.
+Cligram is a CLI telegram client written in python, as a fork of [dark-send](https://www.github.com/mindhuntr/dark-send). It sends messages and files through your personal telegram account using a background service that maintains a connection in the background, much like the stock telegram desktop app.
 
-## Dependencies 
+## Installation 
 
 ``` shell 
 pip3 install . 
 ``` 
 
-## Installation 
-
-Install directly from PyPi
-```shell 
-pip3 install cligram 
-```
-
-
 Or 
 
 Clone the repository to a local directory
 ``` shell
-git clone https://github.com/mindhuntr/cligram 
+git clone https://github.com/PasqualePerilli/cligram 
 ```
 
 For system wide installation 
@@ -37,18 +29,18 @@ pip3 install --user .
 
 ## Configuration
 
-cligram requires a daemon process running in the background. The daemon can be initialized using a parameter 
+cligram requires a background service. The service can be initialized using a parameter 
 
 ```shell
 cligram --start-service
 ```
 
-Once the config file is generated, it is more robust to create a systemd-unit file that automatically executes the daemon once the system is up 
+Once the config file is generated, it is more robust to create a systemd-unit file that automatically executes the service once the system is up 
 
 ```
 
 [Unit]
-Description=Daemon for cligram
+Description=Background service for cligram
 After=network.target
 
 [Service]
