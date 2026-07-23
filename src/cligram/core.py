@@ -1,15 +1,15 @@
 from telethon.tl.functions.messages import GetForumTopicsRequest, GetPeerDialogsRequest, GetForumTopicsByIDRequest
-from dark_send.concurrent_upload import TelegramUploadClient
+from cligram.concurrent_upload import TelegramUploadClient
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.sessions import StringSession
-from dark_send.cli import DarkSendSocket
-import dark_send.config as config
+from cligram.cli import DarkSendSocket
+import cligram.config as config
 from datetime import datetime
 from os import path, remove
 import json 
 import unicodedata
 
-SOCK_PATH = "/tmp/dark-send.sock" 
+SOCK_PATH = "/tmp/cligram.sock" 
 HEADER = 4096
 DEFAULT_LIMIT = 500
 
@@ -38,9 +38,9 @@ async def daemonize():
 
     if path.exists(config.fullpath):
         config.parser.read(config.fullpath)
-        api_id = int(config.parser.get('dark-send', 'api_id'))
-        api_hash = config.parser.get('dark-send', 'api_hash')
-        string = config.parser.get('dark-send', 'string_session')
+        api_id = int(config.parser.get('cligram', 'api_id'))
+        api_hash = config.parser.get('cligram', 'api_hash')
+        string = config.parser.get('cligram', 'string_session')
 
     else:
         print(f"Config file at {config.fullpath} does not exist")
@@ -50,7 +50,7 @@ async def daemonize():
     await user_client.start()
 
     bot_sessions = {} 
-    bot_sections = [ s for s in config.parser.sections() if s != 'dark-send' ]
+    bot_sections = [ s for s in config.parser.sections() if s != 'cligram' ]
 
     for section in bot_sections: 
         string_session = config.parser.get(section, 'string_session')

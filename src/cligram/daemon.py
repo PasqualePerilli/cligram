@@ -1,4 +1,4 @@
-from dark_send.core import daemonize
+from cligram.core import daemonize
 import asyncio
 
 def main():

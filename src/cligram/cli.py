@@ -1,6 +1,6 @@
-from dark_send.meta_data import meta_extract
-from dark_send.inquirer import display_list
-from dark_send.progress_bar import progress
+from cligram.meta_data import meta_extract
+from cligram.inquirer import display_list
+from cligram.progress_bar import progress
 from argparse import ArgumentParser
 from rich.console import Console 
 from rich.panel import Panel
@@ -14,8 +14,8 @@ import sys
 
 """ Get api id and hash from https://my.telegram.org """
 
-SOCK_PATH = "/tmp/dark-send.sock" 
-CONFIG_DIR = "~/.config/dark-send/"
+SOCK_PATH = "/tmp/cligram.sock" 
+CONFIG_DIR = "~/.config/cligram/"
 HEADER = 4096
 DEFAULT_LIMIT = 500
 
@@ -404,17 +404,17 @@ async def main():
         parser.print_help()
         exit()
 
-    if not path.exists(path.join(path.expanduser(CONFIG_DIR) + "dark-send.conf")):
-        import dark_send.config as config
+    if not path.exists(path.join(path.expanduser(CONFIG_DIR) + "cligram.conf")):
+        import cligram.config as config
         await config.generate_userconf()
 
     if args.initialize_bot: 
-        import dark_send.config as config
+        import cligram.config as config
         await config.generate_botconf()
 
     if args.start_service:
         subprocess.Popen(
-            [sys.executable, "-m", "dark_send.daemon"],
+            [sys.executable, "-m", "cligram.daemon"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,

@@ -3,7 +3,7 @@ from telethon.sync import TelegramClient
 import configparser 
 import os 
 
-fullpath = os.path.expanduser("~/.config/dark-send/dark-send.conf") 
+fullpath = os.path.expanduser("~/.config/cligram/cligram.conf") 
 parser = configparser.ConfigParser() 
 
 async def generate_userconf():
@@ -23,7 +23,7 @@ async def generate_userconf():
 
         string_session = client.session.save()
 
-        parser['dark-send'] = {
+        parser['cligram'] = {
                 'api_id': api_id,
                 'api_hash': api_hash, 
                 'string_session': string_session
@@ -44,9 +44,9 @@ async def generate_botconf():
     api_hash = ''
     string_session = '' 
     
-    if parser.has_section('dark-send'): 
-        api_id = parser.get('dark-send', 'api_id') 
-        api_hash = parser.get('dark-send', 'api_hash') 
+    if parser.has_section('cligram'): 
+        api_id = parser.get('cligram', 'api_id') 
+        api_hash = parser.get('cligram', 'api_hash') 
     else: 
         print("Generate user configuration first") 
         exit(1) 

@@ -1,11 +1,11 @@
 [Unit]
-Description=Daemon for dark-send
+Description=Service for cligram
 After=network.target
 
 [Service]
 Type=simple
 User=pasquale
-ExecStart=/home/linuxbrew/.linuxbrew/bin/python3.11 -m dark_send.daemon
+ExecStart=/home/linuxbrew/.linuxbrew/bin/python3.11 -m cligram.daemon
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

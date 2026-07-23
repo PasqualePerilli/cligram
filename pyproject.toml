@@ -1,7 +1,7 @@
 [project]
-name = "dark-send"
+name = "cligram"
 version = "1.3.0"
-description = "A CLI Telegram client written in python"
+description = "A CLI Telegram client written in python based on dark-send"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
@@ -17,4 +17,4 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta" 
 
 [project.scripts] 
-dark-send = "dark_send.cli:entrypoint"
+cligram = "cligram.cli:entrypoint"
