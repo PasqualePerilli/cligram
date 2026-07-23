@@ -1,11 +1,11 @@
 [Unit]
-Description=Daemon for dark-send
+Description=Background service for cligram
 After=network.target
 
 [Service]
 Type=simple
 User=YOUR_USER
-ExecStart=/usr/bin/python3 -m dark_send.daemon
+ExecStart=/usr/bin/python3 -m cligram.daemon
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
