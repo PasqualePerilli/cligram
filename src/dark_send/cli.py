@@ -17,6 +17,7 @@ import sys
 SOCK_PATH = "/tmp/dark-send.sock" 
 CONFIG_DIR = "~/.config/dark-send/"
 HEADER = 4096
+DEFAULT_LIMIT = 500
 
 class DarkSendSocket:
     def __init__(self, path):
@@ -234,6 +235,54 @@ async def cli(args):
         for bot in bot_list.values(): 
             print(bot) 
 
+    async def list_messages(sock, channel_name, limit):
+        cmd = [{"client": "user", "type": "list_messages", "channel": channel_name, "limit": limit}]
+        sock.relay_to_server(cmd)
+        response = sock.get_from_server()
+
+        messages = json.loads(response)
+
+        if "error" in messages:
+            print(messages["error"])
+            return
+
+        #console = Console()
+        #message_counter = 0
+        for msg in messages:
+            #message_counter = message_counter + 1
+            #(sender, text), = msg.items()
+            #text = str(text or "").replace('\n', ' ').replace('\r', ' ')
+            sender = msg["sender"]
+            text = msg["text"].replace(chr(10), ' ').replace(chr(13), ' ') if msg["text"] else ""
+            msg_id = msg["id"]
+            print(f" {msg_id} {sender}: {text}")
+
+    async def list_channels(sock):
+        cmd = [{"client": "user", "type": "list_channels"}]
+        sock.relay_to_server(cmd)
+        response = sock.get_from_server()
+
+        channel_list = json.loads(response)
+
+        for name in channel_list:
+            print(name)
+
+
+    async def download_attachment(sock, msg_id, channel_name, output_dir):
+        abs_output = path.abspath(output_dir)
+        print(f"Downloading attachment #{msg_id} from '{channel_name}' to {abs_output}...")
+        cmd = [{"client": "user", "type": "download_attachment", "channel": channel_name, "msg_id": int(msg_id), "output_dir": abs_output}]
+        sock.relay_to_server(cmd)
+        response = sock.get_from_server()
+
+        result = json.loads(response)
+
+        if "error" in result:
+            print(result["error"])
+            return
+
+        print(f"Downloaded: {result['path']}")
+
 
     async def unread_messages(sock): 
         cmd = [{
@@ -306,17 +355,29 @@ async def cli(args):
         with DarkSendSocket(SOCK_PATH) as sock:
             await get_bots(sock)
 
+    if args.list_channels:
+        with DarkSendSocket(SOCK_PATH) as sock:
+            await list_channels(sock)
+
     if args.unread_messages: 
         await display_dialog()
         with DarkSendSocket(SOCK_PATH) as sock:
             await unread_messages(sock)
 
+    if args.list_messages:
+        with DarkSendSocket(SOCK_PATH) as sock:
+            await list_messages(sock, args.list_messages, args.limit)
+
+    if args.download_attachment:
+        msg_id, chat_name = args.download_attachment
+        with DarkSendSocket(SOCK_PATH) as sock:
+            await download_attachment(sock, msg_id, chat_name, args.download)
 
 async def main():
 
     parser = ArgumentParser(description='command line telegram client')
     parser.add_argument('message', type=str, help="the message you would like to send", nargs="*")
-    parser.add_argument("--daemonize", action="store_true", help="run in daemon mode")
+    parser.add_argument("--start-service", "-ss", "--service-start", "--start-background", "-sb", "--background-start" , "-bs", action="store_true", help="run service in background")
     parser.add_argument('-v', '--video', type=str, nargs="+", help="videos to send")
     parser.add_argument('-i', '--image', type=str, nargs="+", help="images to send")
     parser.add_argument('-f', '--file', type=str, nargs="+", help="files to send")
@@ -328,9 +389,14 @@ async def main():
     parser.add_argument('-r', '--refresh', action="store_true", help="refresh local chat store")
     parser.add_argument('-p', '--progress-colour', type=str, default="#b4befe", help="progress bar color in hex format (e.g. #RRGGBB)")
     parser.add_argument('--initialize-bot', action="store_true", help="initialize bot account") 
-    parser.add_argument('--list-bots', action="store_true", help="list bot accounts") 
+    parser.add_argument('--list-bots', '-lb', action="store_true", help="list bot accounts") 
     parser.add_argument('-b', '--bot-name', type=str, nargs="?", help="use bot account instead of user") 
     parser.add_argument('--unread-messages', action="store_true", help="show unread messages from chat")
+    parser.add_argument('--list-channels', '--list-conversations', '-lc', action="store_true", help="list all channels and conversations")
+    parser.add_argument('--list-messages', '-lm', type=str, nargs="?", help="list all messages from a channel/conversation")
+    parser.add_argument('--limit', '-l', type=int, default=DEFAULT_LIMIT, help="limit number of messages to fetch")
+    parser.add_argument('--download-attachment', '--download-message', '-da', '-dm' , nargs=2, metavar=('MSG_NUM', 'CHAT_NAME'), help="download attachment from a message")
+    parser.add_argument('--download', '-d', '--download-directory', '-dd', '--download-folder', '-df', '--output', '--output-directory', '--output-folder', '-o', '-od', '-of', type=str, default='.', help="directory to save downloaded files")
 
     args = parser.parse_args()
 
@@ -346,7 +412,7 @@ async def main():
         import dark_send.config as config
         await config.generate_botconf()
 
-    if args.daemonize:
+    if args.start_service:
         subprocess.Popen(
             [sys.executable, "-m", "dark_send.daemon"],
             stdout=subprocess.DEVNULL,
@@ -354,14 +420,14 @@ async def main():
             stdin=subprocess.DEVNULL,
             start_new_session=True
         )
-        print("Daemon started in background")
+        print("Service started in background")
         sys.exit(0)
     else:
         try:
             await cli(args)
         except (ConnectionRefusedError, FileNotFoundError) as e: 
             print(f"Caught error {e}") 
-            print("Daemonize the process using --daemonize to initialize socket") 
+            print("Start the process in background using --start-service to initialize socket") 
 
 def entrypoint():
     asyncio.run(main())

@@ -7,9 +7,32 @@ import dark_send.config as config
 from datetime import datetime
 from os import path, remove
 import json 
+import unicodedata
 
 SOCK_PATH = "/tmp/dark-send.sock" 
 HEADER = 4096
+DEFAULT_LIMIT = 500
+
+def normalize_name(text):
+    normalized = unicodedata.normalize("NFKD", text)
+    result = []
+    for c in normalized:
+        cat = unicodedata.category(c)
+        if cat in ('Mn', 'Vs'):
+            continue
+        # Handle enclosed/squared letters that NFKD doesn't decompose
+        name = unicodedata.name(c, '')
+        if name.startswith('NEGATIVE SQUARED LATIN CAPITAL LETTER '):
+            result.append(name[-1].lower())
+        elif name.startswith('SQUARED LATIN CAPITAL LETTER '):
+            result.append(name[-1].lower())
+        elif name.startswith('NEGATIVE CIRCLED LATIN CAPITAL LETTER '):
+            result.append(name[-1].lower())
+        elif name.startswith('REGIONAL INDICATOR SYMBOL LETTER '):
+            result.append(name[-1].lower())
+        else:
+            result.append(c.lower())
+    return ''.join(result)
 
 async def daemonize(): 
 
@@ -227,6 +250,93 @@ async def daemonize():
 
                         server.relay_to_client(conn, bot_list) 
 
+                    case "list_channels":
+                        channel_names = []
+                        async for dialog in client.iter_dialogs():
+                            if hasattr(dialog.entity, "deactivated") and dialog.entity.deactivated:
+                                continue
+                            channel_names.append(normalize_name(dialog.name))
+
+                        server.relay_to_client(conn, channel_names)
+
+                    case "list_messages":
+                        channel_name = normalize_name( cmd["channel"] )
+                        entity = None
+
+                        async for dialog in client.iter_dialogs():
+                            if normalize_name(dialog.name) == channel_name:
+                                entity = dialog.entity
+                                break
+
+                        if entity is None:
+                            server.relay_to_client(conn, {"error": f"Channel '{channel_name}' not found"})
+                        else:
+                            messages = []
+                            chat_name = entity.title if hasattr(entity, "title") else entity.first_name
+                            chat_name = normalize_name(chat_name)
+
+                            if hasattr(entity, "title"):
+                                user_mappings = {}
+                                async for message in client.iter_messages(entity, limit=cmd.get("limit", DEFAULT_LIMIT)):
+                                    text = message.message
+                                    if text:
+                                        text = text.replace(chr(10), ' ').replace(chr(13), ' ')
+                                    if not text:
+                                        if message.media:
+                                            text = "ATTACHMENT"
+                                            if hasattr(message, 'document') and message.document:
+                                                is_sticker = False
+                                                for attr in message.document.attributes:
+                                                    if type(attr).__name__ == 'DocumentAttributeSticker':
+                                                        is_sticker = True
+                                                        break
+                                                if is_sticker:
+                                                    text = "STICKER"
+                                                else:
+                                                    for attr in message.document.attributes:
+                                                        if hasattr(attr, 'file_name'):
+                                                            text = f"ATTACHMENT - {attr.file_name.replace(chr(10), ' ').replace(chr(13), ' ')}"
+                                                            break
+                                                        
+                                        else:
+                                            text = ""
+
+                                    if message.from_id and hasattr(message.from_id, "user_id"):
+                                        user_id = message.from_id.user_id
+                                        if user_id not in user_mappings:
+                                            user_entity = await client.get_entity(user_id)
+                                            user_mappings[user_id] = user_entity.first_name
+                                        messages.append({"sender": user_mappings[user_id], "text": text, "id": message.id})
+                                    else:
+                                        messages.append({"sender": chat_name, "text": text, "id": message.id})
+                            else:
+                                async for message in client.iter_messages(entity, limit=cmd.get("limit", DEFAULT_LIMIT)):
+                                    text = message.message
+                                    if text:
+                                        text = text.replace(chr(10), ' ').replace(chr(13), ' ')
+                                    if not text:
+                                        if message.media:
+                                            text = "ATTACHMENT"
+                                            if hasattr(message, 'document') and message.document:
+                                                is_sticker = False
+                                                for attr in message.document.attributes:
+                                                    if type(attr).__name__ == 'DocumentAttributeSticker':
+                                                        is_sticker = True
+                                                        break
+                                                if is_sticker:
+                                                    text = "STICKER"
+                                                else:
+                                                    for attr in message.document.attributes:
+                                                        if hasattr(attr, 'file_name'):
+                                                            text = f"ATTACHMENT - {attr.file_name.replace(chr(10), ' ').replace(chr(13), ' ')}"
+                                                            break
+                                        else:
+                                            text = ""
+                                    messages.append({"sender": chat_name, "text": text, "id": message.id})
+
+                            server.relay_to_client(conn, messages)
+
+
                     case "unread_messages": 
                         all_messages = {} 
 
@@ -258,15 +368,39 @@ async def daemonize():
                                         entity = await client.get_entity(user_id)
                                         user_mappings[user_id] = entity.first_name
 
-                                    messages.append({ user_mappings[user_id]: message.message })
+                                    messages.append({ user_mappings[user_id]: message.message})
 
                             else:
                                 async for message in client.iter_messages(entity,limit=unread_count): 
-                                    messages.append({ chat_name: message.message })
+                                    messages.append({ chat_name:  message.message })
 
                             all_messages[chat_name] = messages
 
                         server.relay_to_client(conn, all_messages)
+
+                    case "download_attachment":
+                        channel_name = normalize_name(cmd["channel"])
+                        msg_id = cmd["msg_id"]
+                        output_dir = cmd["output_dir"]
+                        entity = None
+
+                        async for dialog in client.iter_dialogs():
+                            if normalize_name(dialog.name) == channel_name:
+                                entity = dialog.entity
+                                break
+                            
+                        if entity is None:
+                            server.relay_to_client(conn, {"error": f"Channel '{channel_name}' not found"})
+                        else:
+                            target_msg = await client.get_messages(entity, ids=msg_id)
+                            if target_msg is None:
+                                server.relay_to_client(conn, {"error": f"Message #{msg_id} not found"})
+                            elif not target_msg.media:
+                                server.relay_to_client(conn, {"error": f"Message #{msg_id} has no attachments"})
+                            else:
+                                downloaded_path = await client.download_media(target_msg, output_dir)
+                                server.relay_to_client(conn, {"path": downloaded_path})
+                            
 
             except Exception as e:
                 server.relay_to_client(conn, {"error": "query failed"})
