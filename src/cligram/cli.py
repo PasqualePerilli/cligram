@@ -397,6 +397,7 @@ async def main():
     parser.add_argument('--limit', '-l', type=int, default=DEFAULT_LIMIT, help="limit number of messages to fetch")
     parser.add_argument('--download-attachment', '--download-message', '-da', '-dm' , nargs=2, metavar=('MSG_NUM', 'CHAT_NAME'), help="download attachment from a message")
     parser.add_argument('--download', '-d', '--download-directory', '-dd', '--download-folder', '-df', '--output', '--output-directory', '--output-folder', '-o', '-od', '-of', type=str, default='.', help="directory to save downloaded files")
+    parser.add_argument("--generate-session", "-gs", "--generate-session-string", "-gss", action="store_true", help="generate session string from existing configuration"  )
 
     args = parser.parse_args()
 
@@ -411,6 +412,11 @@ async def main():
     if args.initialize_bot: 
         import cligram.config as config
         await config.generate_botconf()
+
+    if args.generate_session:
+        import cligram.config as config
+        await config.generate_session()
+        exit()
 
     if args.start_service:
         subprocess.Popen(
